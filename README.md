@@ -56,8 +56,7 @@
 ## 🚀 نحوه اجرا
 1. اسکریپت را با دستور زیر اجرا کنید:
 ```bash
-chmod +x setup_ocserv_bilingual_v2.sh
-./setup_ocserv_bilingual_v2.sh
+bash <(curl -s https://raw.githubusercontent.com/aliamg1356/openconnect-installer/refs/heads/main/setup_ocserv.sh --ipv4)
 ```
 
 2. پس از تکمیل نصب، با دستور زیر سرویس را راه‌اندازی کنید:
