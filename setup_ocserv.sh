@@ -32,7 +32,7 @@ VPN_PORT=$(whiptail --title " VPN Port" --inputbox "Enter VPN port number (defau
 
 # == Obtain SSL Certificate ==
 echo "[✔] Getting SSL certificate from Let's Encrypt for $DOMAIN..."
-certbot certonly --standalone -d "$DOMAIN" --agree-tos -n --email "$EMAIL"
+certbot certonly --manual --preferred-challenges dns --agree-tos --email "$EMAIL -d "$DOMAIN"
 if [ $? -ne 0 ]; then
   whiptail --title "❌ Error" --msgbox "Failed to get SSL certificate. Exiting." 10 50
   exit 1
