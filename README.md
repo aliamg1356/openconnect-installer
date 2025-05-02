@@ -79,3 +79,21 @@ cd /opt/ocs && docker-compose up -d
 
 ---
 
+## 💰 حمایت مالی
+
+ما از حمایت شما برای توسعه و بهبود مستمر پروژه قدردانی می‌کنیم:
+
+<div align="center">
+
+| شبکه         | نوع ارز       | آدرس کیف پول                              | آیکون       |
+|--------------|--------------|------------------------------------------|------------|
+| **Tron**     | TRX (TRC20)  | `TMXRpCsbz8PKzqN4koXiErawdLXzeinWbQ`     | <img src="https://cryptologos.cc/logos/tron-trx-logo.png" width="20"> |
+| **Ethereum** | USDT (ERC20) | `0xD4cEBA0cFf6769Fb9EFE4606bE59C363Ff85BF76` | <img src="https://cryptologos.cc/logos/tether-usdt-logo.png" width="20"> |
+
+</div>
+
+<div align="center" style="margin-top: 20px;">
+  <p>🙏 از اعتماد و حمایت ارزشمند شما سپاسگزاریم</p>
+  <p>هر میزان کمک مالی، انگیزه‌ای برای توسعه و ارتقای پروژه خواهد بود</p>
+</div>
+
