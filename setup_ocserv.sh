@@ -2,8 +2,8 @@
 
 # == Ushkaya Net ASCII Logo ==
 echo "   _    _ _     _               _             "
-echo "  | |  | (_)   | |             | |            "
-echo "  | |  | |_  __| | ___ _ __ ___| |_ ___  _ __ "
+echo "  | |  | | |   | |             | |            "
+echo "  | |  | | | __| | ___ _ __ ___| |_ ___  _ __ "
 echo "  | |  | | |/ _\` |/ _ \ '__/ __| __/ _ \| '__|"
 echo "  | |__| | | (_| |  __/ |  \__ \ || (_) | |   "
 echo "   \____/|_|\__,_|\___|_|  |___/\__\___/|_|   "
@@ -28,10 +28,11 @@ EMAIL=$(whiptail --title " Email" --inputbox "Enter your email for Let's Encrypt
 VPN_SUBNET=$(whiptail --title " VPN Subnet" --inputbox "Enter VPN subnet (exm:172.16.10.0):" 10 60 3>&1 1>&2 2>&3)
 RADIUS_IP=$(whiptail --title " RADIUS Server IP" --inputbox "Enter RADIUS server IP (exm:10.20.30.40):" 10 60 3>&1 1>&2 2>&3)
 RADIUS_SECRET=$(whiptail --title " RADIUS Secret" --passwordbox "Enter RADIUS shared secret:" 10 60 3>&1 1>&2 2>&3)
+VPN_PORT=$(whiptail --title " VPN Port" --inputbox "Enter VPN port number (default:443):" 10 60 "443" 3>&1 1>&2 2>&3)
 
 # == Obtain SSL Certificate ==
 echo "[✔] Getting SSL certificate from Let's Encrypt for $DOMAIN..."
-certbot certonly --standalone -d "$DOMAIN" --agree-tos -n --email "$EMAIL"
+certbot certonly --standalone -d "$DOMAIN" --agree-tos -n --email "$EMAIL" --http-01-port=8080
 if [ $? -ne 0 ]; then
   whiptail --title "❌ Error" --msgbox "Failed to get SSL certificate. Exiting." 10 50
   exit 1
@@ -48,8 +49,8 @@ services:
     container_name: ocserv
     privileged: true
     ports:
-      - "443:443/tcp"
-      - "443:443/udp"
+      - "$VPN_PORT:443/tcp"
+      - "$VPN_PORT:443/udp"
     volumes:
       - ./config:/etc/ocserv
       - ./radius:/etc/radcli
@@ -122,5 +123,9 @@ EOF
 
 echo "$RADIUS_IP $RADIUS_SECRET" > /opt/ocs/radius/servers
 
+# == Start Docker Container ==
+echo "[✔] Starting ocserv container..."
+cd /opt/ocs && docker-compose up -d
+
 # == Completion Message ==
-whiptail --title " Setup Complete" --msgbox "Everything is ready.\n\nNext step:\ncd /opt/ocs && docker-compose up -d" 12 60
+whiptail --title " Setup Complete" --msgbox "OpenConnect VPN server has been successfully configured!\n\n- Domain: $DOMAIN\n- VPN Port: $VPN_PORT\n- VPN Subnet: $VPN_SUBNET\n- RADIUS Server: $RADIUS_IP" 15 60
