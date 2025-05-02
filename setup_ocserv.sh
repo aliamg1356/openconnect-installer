@@ -129,6 +129,29 @@ EOF
 
 echo "$RADIUS_IP    $RADIUS_SECRET" > /opt/ocs/radius/servers
 
+# == Download Radius Dictionary Files ==
+echo "[✔] Downloading Radius dictionary files..."
+DICTIONARY_FILES=(
+    "dictionary"
+    "dictionary.ascend"
+    "dictionary.compat"
+    "dictionary.merit"
+    "dictionary.microsoft"
+    "dictionary.roaringpenguin"
+    "dictionary.sip"
+)
+
+BASE_URL="https://raw.githubusercontent.com/aliamg1356/openconnect-installer/refs/heads/main"
+
+for file in "${DICTIONARY_FILES[@]}"; do
+    if ! curl -sSL "$BASE_URL/$file" -o "/opt/ocs/radius/$file"; then
+        echo "[✘] Failed to download $file"
+        exit 1
+    else
+        echo "[✔] Successfully downloaded $file"
+    fi
+done
+
 # == Start Docker Container ==
 echo "[✔] Starting ocserv container..."
 cd /opt/ocs && docker-compose up -d
