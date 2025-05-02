@@ -66,11 +66,17 @@ cat <<EOF > /opt/ocs/config/ocserv.conf
 auth = "radius[config=/etc/radcli/radiusclient.conf,groupconfig=true]"
 acct = "radius[config=/etc/radcli/radiusclient.conf,groupconfig=true]"
 tcp-port = 443
+udp-port = 443
+run-as-user = nobody
+run-as-group = daemon
+socket-file = /run/ocserv.socket
 server-cert = /etc/ocserv/certs/fullchain.pem
 server-key = /etc/ocserv/certs/privkey.pem
 ca-cert = /etc/ssl/certs/ssl-cert-snakeoil.pem
 isolate-workers = true
+max-clients = 254
 max-same-clients = 10
+server-stats-reset-time = 604800
 keepalive = 30
 dpd = 60
 mobile-dpd = 300
@@ -121,7 +127,7 @@ radius_timeout 10
 radius_retries 3
 EOF
 
-echo "$RADIUS_IP $RADIUS_SECRET" > /opt/ocs/radius/servers
+echo "$RADIUS_IP    $RADIUS_SECRET" > /opt/ocs/radius/servers
 
 # == Start Docker Container ==
 echo "[✔] Starting ocserv container..."
