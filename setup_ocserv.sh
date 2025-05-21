@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# == Ushkaya Net ASCII Logo ==
+# === Ushkaya Net ASCII Logo ===
 echo "   _    _ _     _               _             "
 echo "  | |  | | |   | |             | |            "
 echo "  | |  | | | __| | ___ _ __ ___| |_ ___  _ __ "
@@ -11,7 +11,7 @@ echo "                                             "
 echo "                Ushkaya Net"
 sleep 2
 
-# == Dependency Check ==
+# === Dependency Check ===
 echo "[✔] Checking required packages..."
 for cmd in docker docker-compose curl certbot whiptail; do
   if ! command -v $cmd >/dev/null 2>&1; then
@@ -22,15 +22,15 @@ for cmd in docker docker-compose curl certbot whiptail; do
   fi
 done
 
-# == User Inputs ==
+# === User Inputs ===
 DOMAIN=$(whiptail --title " Domain Name" --inputbox "Enter your domain (vpn.example.com):" 10 60 3>&1 1>&2 2>&3)
 EMAIL=$(whiptail --title " Email" --inputbox "Enter your email for Let's Encrypt certificate:" 10 60 3>&1 1>&2 2>&3)
-VPN_SUBNET=$(whiptail --title " VPN Subnet" --inputbox "Enter VPN subnet (exm:172.16.10.0):" 10 60 3>&1 1>&2 2>&3)
-RADIUS_IP=$(whiptail --title " RADIUS Server IP" --inputbox "Enter RADIUS server IP (exm:10.20.30.40):" 10 60 3>&1 1>&2 2>&3)
+VPN_SUBNET=$(whiptail --title " VPN Subnet" --inputbox "Enter VPN subnet (e.g.: 172.16.10.0):" 10 60 3>&1 1>&2 2>&3)
+RADIUS_IP=$(whiptail --title " RADIUS Server IP" --inputbox "Enter RADIUS server IP:" 10 60 3>&1 1>&2 2>&3)
 RADIUS_SECRET=$(whiptail --title " RADIUS Secret" --passwordbox "Enter RADIUS shared secret:" 10 60 3>&1 1>&2 2>&3)
 VPN_PORT=$(whiptail --title " VPN Port" --inputbox "Enter VPN port number (default:443):" 10 60 "443" 3>&1 1>&2 2>&3)
 
-# == Obtain SSL Certificate ==
+# === Get SSL Certificate ===
 echo "[✔] Getting SSL certificate from Let's Encrypt for $DOMAIN..."
 certbot certonly --standalone -d "$DOMAIN" --agree-tos -n --email "$EMAIL"
 if [ $? -ne 0 ]; then
@@ -38,10 +38,14 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-# == Create Directory Structure ==
-mkdir -p /opt/ocs/{config,radius}
+# === Create Directory Structure ===
+mkdir -p /opt/ocs/{config,radius,certs}
 
-# == Create docker-compose.yml ==
+# === Copy Initial Certificates ===
+cp /etc/letsencrypt/live/$DOMAIN/fullchain.pem /opt/ocs/certs/fullchain.pem
+cp /etc/letsencrypt/live/$DOMAIN/privkey.pem /opt/ocs/certs/privkey.pem
+
+# === Create docker-compose.yml ===
 cat <<EOF > /opt/ocs/docker-compose.yml
 services:
   ocserv:
@@ -54,14 +58,13 @@ services:
     volumes:
       - ./config:/etc/ocserv
       - ./radius:/etc/radcli
-      - /etc/letsencrypt/live/$DOMAIN/fullchain.pem:/etc/ocserv/certs/fullchain.pem:ro
-      - /etc/letsencrypt/live/$DOMAIN/privkey.pem:/etc/ocserv/certs/privkey.pem:ro
+      - ./certs:/etc/ocserv/certs
     cap_add:
       - NET_ADMIN
     restart: unless-stopped
 EOF
 
-# == Create ocserv config ==
+# === Create ocserv.conf ===
 cat <<EOF > /opt/ocs/config/ocserv.conf
 auth = "radius[config=/etc/radcli/radiusclient.conf,groupconfig=true]"
 acct = "radius[config=/etc/radcli/radiusclient.conf,groupconfig=true]"
@@ -109,7 +112,7 @@ cisco-client-compat = true
 dtls-legacy = true
 EOF
 
-# == Create radcli files ==
+# === Create radcli config ===
 cat <<EOF > /opt/ocs/radius/radiusclient.conf
 auth_order radius
 login_tries 4
@@ -127,9 +130,9 @@ radius_timeout 10
 radius_retries 3
 EOF
 
-echo "$RADIUS_IP    $RADIUS_SECRET" > /opt/ocs/radius/servers
+echo "$RADIUS_IP $RADIUS_SECRET" > /opt/ocs/radius/servers
 
-# == Download Radius Dictionary Files ==
+# === Download Radius Dictionary Files ===
 echo "[✔] Downloading Radius dictionary files..."
 DICTIONARY_FILES=(
     "dictionary"
@@ -144,17 +147,33 @@ DICTIONARY_FILES=(
 BASE_URL="https://raw.githubusercontent.com/aliamg1356/openconnect-installer/refs/heads/main"
 
 for file in "${DICTIONARY_FILES[@]}"; do
-    if ! curl -sSL "$BASE_URL/$file" -o "/opt/ocs/radius/$file"; then
-        echo "[✘] Failed to download $file"
-        exit 1
-    else
-        echo "[✔] Successfully downloaded $file"
-    fi
+    curl -sSL "$BASE_URL/$file" -o "/opt/ocs/radius/$file"
 done
 
-# == Start Docker Container ==
-echo "[✔] Starting ocserv container..."
+# === Start Docker Container ===
 cd /opt/ocs && docker-compose up -d
 
-# == Completion Message ==
-whiptail --title " Setup Complete" --msgbox "OpenConnect VPN server has been successfully configured!\n\n- Domain: $DOMAIN\n- VPN Port: $VPN_PORT\n- VPN Subnet: $VPN_SUBNET\n- RADIUS Server: $RADIUS_IP" 15 60
+# === Create SSL Auto-Renew Script ===
+cat <<EOF > /opt/ocs/renew_ssl.sh
+#!/bin/bash
+
+echo "[+] Renewing certificate for $DOMAIN..."
+certbot renew --quiet
+
+if [ \$? -eq 0 ]; then
+    echo "[+] Copying updated certificates..."
+    cp /etc/letsencrypt/live/$DOMAIN/fullchain.pem /opt/ocs/certs/fullchain.pem
+    cp /etc/letsencrypt/live/$DOMAIN/privkey.pem /opt/ocs/certs/privkey.pem
+    docker restart ocserv
+else
+    echo "[!] Certificate renewal failed."
+fi
+EOF
+
+chmod +x /opt/ocs/renew_ssl.sh
+
+# === Setup cronjob for auto-renew every Saturday at 4AM ===
+(crontab -l 2>/dev/null; echo "0 4 * * 6 /opt/ocs/renew_ssl.sh >> /opt/ocs/renew_ssl.log 2>&1") | crontab -
+
+# === Completion Message ===
+whiptail --title "✅ Setup Complete" --msgbox "OpenConnect VPN setup is complete!\n\nDomain: $DOMAIN\nVPN Port: $VPN_PORT\nVPN Subnet: $VPN_SUBNET\nRADIUS Server: $RADIUS_IP\n\nAutomatic SSL renewal is scheduled every Saturday at 04:00." 15 60
