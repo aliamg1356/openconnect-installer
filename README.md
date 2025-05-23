@@ -61,8 +61,9 @@
 bash <(curl -s https://raw.githubusercontent.com/aliamg1356/openconnect-installer/refs/heads/main/setup_ocserv.sh --ipv4)
 ```
 
-2. پس از تکمیل نصب، با دستور زیر سرویس را راه‌اندازی کنید:
+2. پس از تکمیل نصب، با دستور زیر میتوانید سرویس را متوقف یا راه‌اندازی کنید:
 ```bash
+cd /opt/ocs && docker-compose down
 cd /opt/ocs && docker-compose up -d
 ```
 
