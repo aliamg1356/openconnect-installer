@@ -17,14 +17,13 @@ display_logo() {
     ${NC}"
 }
 
-# === Show Logo ===
 clear
 display_logo
 sleep 2
 
 # === Dependency Check ===
 echo "[✔] Checking required packages..."
-for cmd in docker docker-compose curl certbot whiptail; do
+for cmd in docker docker-compose curl certbot; do
   if ! command -v $cmd >/dev/null 2>&1; then
     echo "[✘] $cmd not found. Installing..."
     apt update && apt install -y $cmd
@@ -34,36 +33,38 @@ for cmd in docker docker-compose curl certbot whiptail; do
 done
 
 # === User Inputs ===
-DOMAIN=$(whiptail --title " Domain Name" --inputbox "Enter your domain (vpn.example.com):" 10 60 3>&1 1>&2 2>&3)
-EMAIL=$(whiptail --title " Email" --inputbox "Enter your email for Let's Encrypt certificate:" 10 60 3>&1 1>&2 2>&3)
-VPN_SUBNET=$(whiptail --title " VPN Subnet" --inputbox "Enter VPN subnet (e.g.: 172.16.10.0):" 10 60 3>&1 1>&2 2>&3)
-RADIUS_IP=$(whiptail --title " RADIUS Server IP" --inputbox "Enter RADIUS server IP:" 10 60 3>&1 1>&2 2>&3)
-RADIUS_SECRET=$(whiptail --title " RADIUS Secret" --passwordbox "Enter RADIUS shared secret:" 10 60 3>&1 1>&2 2>&3)
-VPN_PORT=$(whiptail --title " VPN Port" --inputbox "Enter VPN port number (default:443):" 10 60 "443" 3>&1 1>&2 2>&3)
+read -p "Enter your domain (e.g., vpn.example.com): " DOMAIN
+read -p "Enter your email for Let's Encrypt certificate: " EMAIL
+read -p "Enter VPN subnet (e.g., 172.16.10.0): " VPN_SUBNET
+read -p "Enter RADIUS server IP: " RADIUS_IP
+read -sp "Enter RADIUS shared secret: " RADIUS_SECRET
+echo ""
+read -p "Enter VPN port number [default: 443]: " VPN_PORT
+VPN_PORT=${VPN_PORT:-443}
 
 # === Get SSL Certificate ===
 echo "[✔] Getting SSL certificate for $DOMAIN..."
 certbot certonly --standalone -d "$DOMAIN" --agree-tos -n --email "$EMAIL"
 if [ $? -ne 0 ]; then
-  whiptail --title "❌ Error" --msgbox "Failed to get SSL certificate. Exiting." 10 50
+  echo "[✘] Failed to get SSL certificate. Exiting."
   exit 1
 fi
 
 # === Create Directory Structure ===
 mkdir -p /opt/ocs/{config,radius,certs}
 
-# === Copy Initial Certificates ===
+# === Copy Certificates ===
 cp /etc/letsencrypt/live/$DOMAIN/fullchain.pem /opt/ocs/certs/fullchain.pem
 cp /etc/letsencrypt/live/$DOMAIN/privkey.pem /opt/ocs/certs/privkey.pem
 
-# === Download and Load Custom Docker Image ===
-echo "[✔] Downloading custom Docker image..."
+# === Download and Load Docker Image ===
+echo "[✔] Downloading Docker image..."
 curl -L -o /opt/ocs/ushkayanet-ocservlatest.tar https://github.com/aliamg1356/openconnect-installer/releases/download/v1.0.0/ushkayanet-ocservlatest.tar
 
-echo "[✔] Loading image into Docker..."
+echo "[✔] Loading Docker image..."
 docker load -i /opt/ocs/ushkayanet-ocservlatest.tar
 
-# === Create docker-compose.yml with custom image ===
+# === Create docker-compose.yml ===
 cat <<EOF > /opt/ocs/docker-compose.yml
 services:
   ocserv:
@@ -182,4 +183,14 @@ chmod +x /opt/ocs/renew_ssl.sh
 (crontab -l 2>/dev/null; echo "0 4 * * 6 /opt/ocs/renew_ssl.sh >> /opt/ocs/renew_ssl.log 2>&1") | crontab -
 
 # === Completion Message ===
-whiptail --title "✅ Setup Complete" --msgbox "VPN setup complete!\n\nDomain: $DOMAIN\nVPN Port: $VPN_PORT\nVPN Subnet: $VPN_SUBNET\nRADIUS Server: $RADIUS_IP\n\nImage: ushkayanet-ocserv:latest\nAuto-renew every Saturday 4:00 AM" 15 60
+echo -e "\n\033[1;32m✔ VPN setup complete!\033[0m"
+echo ""
+printf "%-20s | %-40s\n" "Field" "Value"
+printf -- "---------------------+------------------------------------------\n"
+printf "%-20s | %-40s\n" "Domain" "$DOMAIN"
+printf "%-20s | %-40s\n" "VPN Port" "$VPN_PORT"
+printf "%-20s | %-40s\n" "VPN Subnet" "$VPN_SUBNET"
+printf "%-20s | %-40s\n" "RADIUS Server" "$RADIUS_IP"
+printf "%-20s | %-40s\n" "Docker Image" "ushkayanet-ocserv:latest"
+printf "%-20s | %-40s\n" "Auto-Renew" "Every Saturday at 4:00 AM"
+echo ""
