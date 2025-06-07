@@ -81,13 +81,6 @@ services:
     cap_add:
       - NET_ADMIN
     restart: unless-stopped
-    networks:
-      shared_net:
-        ipv4_address: 172.20.0.3
-
-networks:
-  shared_net:
-    external: true
 EOF
 
 # === Create ocserv.conf ===
