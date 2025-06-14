@@ -36,11 +36,32 @@ done
 read -p "Enter your domain (e.g., vpn.example.com): " DOMAIN
 read -p "Enter your email for Let's Encrypt certificate: " EMAIL
 read -p "Enter VPN subnet (e.g., 172.16.10.0): " VPN_SUBNET
-read -p "Enter RADIUS server IP: " RADIUS_IP
+read -p "Enter RADIUS server IP [or IP:PORT for auth]: " AUTH_INPUT
+read -p "Enter RADIUS accounting IP [or IP:PORT for acct, leave empty to use same as auth]: " ACCT_INPUT
 read -sp "Enter RADIUS shared secret: " RADIUS_SECRET
 echo ""
 read -p "Enter VPN port number [default: 443]: " VPN_PORT
 VPN_PORT=${VPN_PORT:-443}
+
+# === Parse RADIUS IPs and Ports ===
+if [[ "$AUTH_INPUT" == *:* ]]; then
+  RADIUS_AUTH_IP="${AUTH_INPUT%%:*}"
+  RADIUS_AUTH_PORT="${AUTH_INPUT##*:}"
+else
+  RADIUS_AUTH_IP="$AUTH_INPUT"
+  RADIUS_AUTH_PORT=""
+fi
+
+if [[ -z "$ACCT_INPUT" ]]; then
+  RADIUS_ACCT_IP="$RADIUS_AUTH_IP"
+  RADIUS_ACCT_PORT="$RADIUS_AUTH_PORT"
+elif [[ "$ACCT_INPUT" == *:* ]]; then
+  RADIUS_ACCT_IP="${ACCT_INPUT%%:*}"
+  RADIUS_ACCT_PORT="${ACCT_INPUT##*:}"
+else
+  RADIUS_ACCT_IP="$ACCT_INPUT"
+  RADIUS_ACCT_PORT=""
+fi
 
 # === Get SSL Certificate ===
 echo "[✔] Getting SSL certificate for $DOMAIN..."
@@ -138,8 +159,8 @@ login_tries 4
 login_timeout 60
 nologin /etc/nologin
 servers /etc/radcli/servers
-authserver $RADIUS_IP
-acctserver $RADIUS_IP
+authserver ${RADIUS_AUTH_IP}${RADIUS_AUTH_PORT:+:$RADIUS_AUTH_PORT}
+acctserver ${RADIUS_ACCT_IP}${RADIUS_ACCT_PORT:+:$RADIUS_ACCT_PORT}
 dictionary /etc/radcli/dictionary
 login_radius /usr/sbin/login.radius
 seqfile /var/run/radius.seq
@@ -149,7 +170,8 @@ radius_timeout 10
 radius_retries 3
 EOF
 
-echo "$RADIUS_IP $RADIUS_SECRET" > /opt/ocs/radius/servers
+# === Add servers file ===
+echo "$RADIUS_AUTH_IP $RADIUS_SECRET" > /opt/ocs/radius/servers
 
 # === Download Dictionary Files ===
 echo "[✔] Downloading Radius dictionary files..."
@@ -190,7 +212,8 @@ printf -- "---------------------+------------------------------------------\n"
 printf "%-20s | %-40s\n" "Domain" "$DOMAIN"
 printf "%-20s | %-40s\n" "VPN Port" "$VPN_PORT"
 printf "%-20s | %-40s\n" "VPN Subnet" "$VPN_SUBNET"
-printf "%-20s | %-40s\n" "RADIUS Server" "$RADIUS_IP"
+printf "%-20s | %-40s\n" "RADIUS Auth Server" "${RADIUS_AUTH_IP}${RADIUS_AUTH_PORT:+:$RADIUS_AUTH_PORT}"
+printf "%-20s | %-40s\n" "RADIUS Acct Server" "${RADIUS_ACCT_IP}${RADIUS_ACCT_PORT:+:$RADIUS_ACCT_PORT}"
 printf "%-20s | %-40s\n" "Docker Image" "ushkayanet-ocserv:latest"
 printf "%-20s | %-40s\n" "Auto-Renew" "Every Saturday at 4:00 AM"
 echo ""
