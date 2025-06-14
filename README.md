@@ -40,9 +40,13 @@
 ساختار دایرکتوری مورد نیاز را ایجاد می‌کند:
 ```
 /opt/ocs/
-├── config/
-├── radius/
-└── docker-compose.yml
+├── certs/              # گواهی‌های SSL (fullchain.pem, privkey.pem)
+├── config/             # فایل کانفیگ ocserv
+├── radius/             # فایل‌های کانفیگ و دیکشنری RADIUS
+├── docker-compose.yml  # فایل docker-compose برای اجرای ocserv
+├── renew_ssl.sh        # اسکریپت تمدید خودکار گواهی SSL
+└── renew_ssl.log       # لاگ تمدید گواهی‌ها
+
 ```
 
 ### 5. پیکربندی فایل‌ها
@@ -70,6 +74,30 @@ bash <(curl -s https://raw.githubusercontent.com/aliamg1356/openconnect-installe
 cd /opt/ocs && docker-compose down
 cd /opt/ocs && docker-compose up -d
 ```
+
+🔐 پشتیبانی از فرمت‌های مختلف RADIUS
+اسکریپت از هر دو حالت زیر برای وارد کردن IP و پورت پشتیبانی می‌کند:
+
+فقط IP:
+
+```
+192.0.2.1
+```
+IP به همراه پورت:
+
+```
+192.0.2.1:1812
+```
+در صورت وارد نکردن پورت، قسمت :PORT در کانفیگ قرار نمی‌گیرد.
+
+🧪 پیش‌نیازها
+Ubuntu 20+ (یا Debian مشابه)
+
+پورت‌های 80، 443 و 443/udp باز باشند
+
+نصب بودن docker, docker-compose, curl, certbot (در صورت نبود، اسکریپت نصب می‌کند)
+
+
 
 ## 📝 نکات مهم
 - پورت تنظیم شده از قبل باید در فایروال باز باشد.
